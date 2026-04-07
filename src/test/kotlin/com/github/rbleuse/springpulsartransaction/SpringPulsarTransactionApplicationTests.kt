@@ -11,15 +11,10 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.pulsar.core.PulsarTemplate
 import org.springframework.pulsar.listener.Acknowledgement
-import java.lang.reflect.Field
 import kotlin.test.Test
 
 @Import(TestcontainersConfiguration::class)
-@SpringBootTest(
-    properties = [
-        "spring.pulsar.consumer.subscription.name=test-subscription-\${random.uuid}",
-    ],
-)
+@SpringBootTest
 class SpringPulsarTransactionApplicationTests @Autowired constructor(
     private val pulsarTemplate: PulsarTemplate<TestMessage>,
     @MockkSpyBean private val listener: MessageListener,
@@ -40,7 +35,7 @@ class SpringPulsarTransactionApplicationTests @Autowired constructor(
         val receivedAcknowledgement = slot.captured
 
         val transaction = getTransaction(receivedAcknowledgement)
-        println("txn = ${transaction.txnID}")
+        println("txn = ${transaction.txnID}, state = ${transaction.state}")
     }
 
     @Test
@@ -58,28 +53,13 @@ class SpringPulsarTransactionApplicationTests @Autowired constructor(
         val receivedAcknowledgement = slot.captured
 
         val transaction = getTransaction(receivedAcknowledgement)
-        println("txn = ${transaction.txnID}")
+        println("txn = ${transaction.txnID}, state = ${transaction.state}")
     }
 
     private fun getTransaction(acknowledgement: Acknowledgement): TransactionImpl {
-        val field = getFieldRecursively(
-            acknowledgement.javaClass,
-            "txn"
-        )
+        val field = acknowledgement.javaClass.superclass.getDeclaredField("txn")
         field.isAccessible = true
 
         return field.get(acknowledgement) as TransactionImpl
-    }
-
-    private fun getFieldRecursively(clazz: Class<*>, fieldName: String): Field {
-        var current: Class<*>? = clazz
-        while (current != null) {
-            try {
-                return current.getDeclaredField(fieldName)
-            } catch (ex: NoSuchFieldException) {
-                current = current.superclass
-            }
-        }
-        throw NoSuchFieldException(fieldName)
     }
 }

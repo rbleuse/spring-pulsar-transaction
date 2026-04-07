@@ -16,3 +16,4 @@ logging:
     org.apache.pulsar.client.impl.transaction: TRACE
     org.apache.pulsar.client.impl.TransactionImpl: TRACE
     org.apache.pulsar.client.impl.ConsumerImpl: DEBUG
+    com.github.rbleuse.springpulsartransaction.listener.MessageListener: DEBUG

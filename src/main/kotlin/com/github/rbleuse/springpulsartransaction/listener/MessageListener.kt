@@ -24,7 +24,7 @@ class MessageListener {
     fun consumeMessage(message: Message<TestMessage>,
                        acknowledgment: Acknowledgement
     ) {
-        logger.info("Received message {}", message)
+        logger.info("Received message ID {}", message.messageId)
         acknowledgment.acknowledge()
     }
 }
