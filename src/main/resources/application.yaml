@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: spring-pulsar-transaction
+  pulsar:
+    transaction:
+      enabled: true
+    consumer:
+      subscription:
+        type: key_shared
+
+logging:
+  level:
+    root: OFF
+
+    # Only enable Pulsar transaction-related logs
+    org.apache.pulsar.client.impl.transaction: TRACE
+    org.apache.pulsar.client.impl.TransactionImpl: TRACE
+    org.apache.pulsar.client.impl.ConsumerImpl: DEBUG
