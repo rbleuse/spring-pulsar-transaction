@@ -3,63 +3,55 @@ package com.github.rbleuse.springpulsartransaction
 import com.github.rbleuse.springpulsartransaction.listener.MessageListener
 import com.github.rbleuse.springpulsartransaction.listener.TestMessage
 import com.ninjasquad.springmockk.MockkSpyBean
-import io.mockk.slot
 import io.mockk.verify
-import org.apache.pulsar.client.impl.transaction.TransactionImpl
+import org.apache.pulsar.client.api.PulsarClient
+import org.apache.pulsar.client.api.Schema
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
-import org.springframework.pulsar.core.PulsarTemplate
-import org.springframework.pulsar.listener.Acknowledgement
 import kotlin.test.Test
 
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 class SpringPulsarTransactionApplicationTests @Autowired constructor(
-    private val pulsarTemplate: PulsarTemplate<TestMessage>,
+    private val pulsarClient: PulsarClient,
     @MockkSpyBean private val listener: MessageListener,
 ) {
+    fun PulsarClient.sendMessageToTopic(
+        payload: TestMessage,
+        key: String,
+    ) {
+        this.newProducer(Schema.JSON(TestMessage::class.java))
+            .topic("persistent://public/default/test-topic")
+            .create().use { producer ->
+                producer
+                    .newMessage()
+                    .key(key)
+                    .value(payload)
+                    .send()
+            }
+    }
+
 
     @Test
     fun `should consume first message`() {
         val message = TestMessage("Hello, Pulsar!")
 
-        pulsarTemplate.send("persistent://public/default/test-topic", message)
-
-        val slot = slot<Acknowledgement>()
+        pulsarClient.sendMessageToTopic(message, "message1")
 
         verify(exactly = 1, timeout = 1000) {
-            listener.consumeMessage(any(), capture(slot))
+            listener.consumeMessage(any(), any())
         }
-
-        val receivedAcknowledgement = slot.captured
-
-        val transaction = getTransaction(receivedAcknowledgement)
-        println("txn = ${transaction.txnID}, state = ${transaction.state}")
     }
 
     @Test
     fun `should consume second message`() {
         val message = TestMessage("Hello, Pulsar 2!")
 
-        pulsarTemplate.send("persistent://public/default/test-topic", message)
-
-        val slot = slot<Acknowledgement>()
+        pulsarClient.sendMessageToTopic(message, "message2")
 
         verify(exactly = 1, timeout = 1000) {
-            listener.consumeMessage(any(), capture(slot))
+            listener.consumeMessage(any(), any())
         }
-
-        val receivedAcknowledgement = slot.captured
-
-        val transaction = getTransaction(receivedAcknowledgement)
-        println("txn = ${transaction.txnID}, state = ${transaction.state}")
-    }
-
-    private fun getTransaction(acknowledgement: Acknowledgement): TransactionImpl {
-        val field = acknowledgement.javaClass.superclass.getDeclaredField("txn")
-        field.isAccessible = true
-
-        return field.get(acknowledgement) as TransactionImpl
     }
 }
